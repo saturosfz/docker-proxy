@@ -255,6 +255,28 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := r.URL.Path
+
+	// ==========================================
+	// 【核心修复】：优先执行精确的路由分支判定
+	// ==========================================
+	switch {
+	case path == "/health":
+		handleHealth(w)
+		return // 执行完健康检查直接退出，严防被后续逻辑拦截
+	case path == "/v2/" || path == "/v2":
+		handleV2Ping(w)
+		return
+	case strings.Contains(path, "/token"):
+		handleToken(w, r)
+		return
+	case strings.HasPrefix(path, "/v2/"):
+		handleV2(w, r, hubHost, isDockerHub)
+		return
+	}
+
+	// ==========================================
+	// 【兜底逻辑】：不是特殊路径，再交由浏览器或常规代理处理
+	// ==========================================
 	isBrowser := strings.Contains(ua, "mozilla")
 	isV1Hub := strings.Contains(path, "/v1/search") || strings.Contains(path, "/v1/repositories")
 
@@ -263,18 +285,8 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch {
-	case path == "/v2/" || path == "/v2":
-		handleV2Ping(w)
-	case strings.Contains(path, "/token"):
-		handleToken(w, r)
-	case strings.HasPrefix(path, "/v2/"):
-		handleV2(w, r, hubHost, isDockerHub)
-	case path == "/health":
-		handleHealth(w)
-	default:
-		proxyDirect(w, r, hubHost)
-	}
+	// 终极 fallback 兜底
+	proxyDirect(w, r, hubHost)
 }
 
 // --- browser / search ---
