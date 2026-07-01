@@ -198,7 +198,7 @@ func setupLogging() {
 // Mirrors the Worker's routing logic: ns param > hubhost param > Host header prefix
 
 func resolveUpstream(r *http.Request) (hubHost string, isDockerHub bool) {
-    if ns := r.URL.Query().Get("ns"); ns != "" {
+	if ns := r.URL.Query().Get("ns"); ns != "" {
 		if ns == "docker.io" {
 			return dockerHub, true
 		}
@@ -209,12 +209,14 @@ func resolveUpstream(r *http.Request) (hubHost string, isDockerHub bool) {
 		hostname = r.Host
 	}
 
-	// 【新增修复逻辑】：如果 hostname 包含端口号（如 127.0.0.1:8080 或 registry.com:8080），剥离端口
+	// 终极防御：彻底剥离 Host 中的端口号
 	if h, _, err := net.SplitHostPort(hostname); err == nil {
 		hostname = h
+	} else if idx := strings.Index(hostname, ":"); idx != -1 {
+		// 备用兜底逻辑：防止非标准格式
+		hostname = hostname[:idx]
 	}
 
-	// 此时 hostname 已经是纯粹的 IP 或 域名（如 "quay" 或 "127.0.0.1"）
 	hostTop := strings.Split(hostname, ".")[0]
 	if u, ok := routes[hostTop]; ok {
 		return u, false
@@ -434,7 +436,8 @@ func handleV2(w http.ResponseWriter, r *http.Request, hubHost string, isDockerHu
 	path := r.URL.Path
 	rawQuery := r.URL.RawQuery
 
-	// Worker 逻辑: 如果 query 不含 %2F 但整体含 %3A, 在第一个 %3A 后插入 library%2F
+	// 【将下面这段逻辑完全注释掉】
+	/*
 	if isDockerHub && !containsCI(rawQuery, "%2F") {
 		fullURI := path
 		if rawQuery != "" {
@@ -453,8 +456,9 @@ func handleV2(w http.ResponseWriter, r *http.Request, hubHost string, isDockerHu
 			}
 		}
 	}
+	*/
 
-	// Docker Hub 官方镜像自动补 library/ 前缀
+	// 保持下方的逻辑不变...
 	if isDockerHub && v2ShortPathRegex.MatchString(path) && !v2LibraryRegex.MatchString(path) {
 		if parts := strings.SplitN(path, "/v2/", 2); len(parts) == 2 {
 			path = "/v2/library/" + parts[1]
