@@ -22,7 +22,7 @@ jobs:
           go-version-file: 'go.mod'
 
     - name: Build
-      run: go build -v -o docker-proxy main.go
+      run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -a -ldflags '-extldflags "-static"' -o docker-proxy main.go
 
     - name: Test
       run: go test -v ./...
