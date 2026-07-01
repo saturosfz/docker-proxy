@@ -203,15 +203,15 @@ func resolveUpstream(r *http.Request) (hubHost string, isDockerHub bool) {
 		}
 		return ns, false
 	}
-	hostname := r.URL.Query().Get("hubhost")
-	if hostname == "" {
-		hostname = r.Host
-	}
-	hostTop := strings.Split(hostname, ".")[0]
-	if u, ok := routes[hostTop]; ok {
-		return u, false
-	}
-	return dockerHub, true
+    hostname := r.URL.Query().Get("hubhost")
+    if hostname == "" {
+        hostname = r.Host // <--- 关键点：当不带参数时，r.Host 包含 "域名:端口"（例如 "127.0.0.1:8080"）
+    }
+    hostTop := strings.Split(hostname, ".")[0] // <--- 错误发生在这里！
+    if u, ok := routes[hostTop]; ok {
+        return u, false
+    }
+    return dockerHub, true
 }
 
 func isBlockedUA(ua string) bool {
